@@ -8,12 +8,15 @@ our $VERSION = "0.01";
 use Redis::LeaderBoardMulti::Util qw/multi_exec watch_multi_exec/;
 use Redis::LeaderBoardMulti::Script;
 
+our $SUPPORT_64BIT = eval { unpack('Q>', "\x00\x00\x00\x00\x00\x00\x00\x01") };
+
 sub new {
     my ($class, %args) = @_;
     my $self = bless {
         use_hash    => 1,
         use_script  => 1,
         use_evalsha => 1,
+        order       => ['desc'],
         %args,
     }, $class;
 
@@ -259,12 +262,43 @@ sub get_rank_by_score {
 
 sub _pack_scores {
     my ($self, @scores) = @_;
-    return pack('Q>' x scalar(@scores), @scores);
+    my $num = scalar @scores;
+    my $order = $self->{order};
+    die "the number of scores is illegal" if $num != scalar @$order;
+    my $packed_score = '';
+    for my $i (0..$num-1) {
+        my $score = $scores[$i];
+        my $packed = $SUPPORT_64BIT ? pack('q>', $score) : pack('l>l>', $score < 0 ? -1 : 0, $score);
+        $packed = "$packed" ^ "\x80";
+        if ($order->[$i] eq 'asc') {
+            $packed = ~"$packed";
+        }
+        $packed_score .= $packed;
+    }
+    return $packed_score;
 }
 
 sub _unpack_scores {
     my ($self, $packed_score) = @_;
-    return unpack('Q>' x 2, $packed_score);
+    my $order = $self->{order};
+    my $num = scalar @$order;
+    my @packeds = $packed_score =~ /.{8}/g;
+    my @scores;
+    for my $i (0..$num-1) {
+        my $packed = $packeds[$i];
+        $packed = "$packed" ^ "\x80";
+        if ($order->[$i] eq 'asc') {
+            $packed = ~"$packed";
+        }
+        my $score;
+        if ($SUPPORT_64BIT) {
+            ($score) = unpack('q>', $packed);
+        } else {
+            (undef, $score) = unpack('l>l>', $packed)
+        }
+        push @scores, $score;
+    }
+    return @scores;
 }
 
 
