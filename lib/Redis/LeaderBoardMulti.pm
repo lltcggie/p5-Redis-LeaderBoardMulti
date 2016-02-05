@@ -309,15 +309,26 @@ __END__
 
 =head1 NAME
 
-Redis::LeaderBoardMulti - It's new $module
+Redis::LeaderBoardMulti - Redis leader board considering multiple scores
 
 =head1 SYNOPSIS
 
-    use Redis::LeaderBoardMulti;
+    use Redis;
+    use Redis::LeaderBoard;
+    my $redis = Redis->new;
+    my $lb = Redis::LeaderBoardMulti->new(
+        redis => $redis,
+        key   => 'leader_board:1',
+        order => ['asc', 'desc'], # asc/desc, desc as default
+    );
+    $lb->set_score('one' => 100, time);
+    $lb->set_score('two' =>  50, time);
+    my ($rank, $score) = $lb->get_rank_with_score('one');
 
 =head1 DESCRIPTION
 
-Redis::LeaderBoardMulti is ...
+Redis::LeaderBoardMulti is for providing leader board by using Redis's sorted set.
+Redis::LeaderBoard considers only one score, while Redis::LeaderBoardMulti can consider secondary score.
 
 =head1 LICENSE
 
