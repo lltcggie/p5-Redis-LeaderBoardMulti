@@ -1,5 +1,5 @@
 {
-   "abstract" : "It's new $module",
+   "abstract" : "Redis leader board considering multiple scores",
    "author" : [
       "@gmail.com>"
    ],
@@ -53,5 +53,19 @@
       }
    },
    "release_status" : "unstable",
-   "version" : "0.01"
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/shogo82148/p5-Redis-LeaderBoardMulti/issues"
+      },
+      "homepage" : "https://github.com/shogo82148/p5-Redis-LeaderBoardMulti",
+      "repository" : {
+         "type" : "git",
+         "url" : "git://github.com/shogo82148/p5-Redis-LeaderBoardMulti.git",
+         "web" : "https://github.com/shogo82148/p5-Redis-LeaderBoardMulti"
+      }
+   },
+   "version" : "0.01",
+   "x_contributors" : [
+      "Ichinose Shogo <shogo82148@gmail.com>"
+   ]
 }
