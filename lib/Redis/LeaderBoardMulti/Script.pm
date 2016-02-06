@@ -4,59 +4,49 @@ use Digest::SHA qw(sha1_hex);
 
 sub new {
     my ($class, %args) = @_;
-    my $self = bless {}, $class;
-
-    $self->{script} = $args{script};
-    $self->{retry_count} = $args{retry_count} || 10;
-    if ($args{use_evalsha}) {
-        $self->{sha} = sha1_hex($self->{script});
-    }
+    my $self = bless {
+        use_evalsha => 1,
+        %args,
+    }, $class;
 
     return $self;
 }
 
 sub eval {
     my ($self, $redis, $keys, $args) = @_;
-    my $ret;
-    if (my $sha = $self->{sha}) {
-        my $err;
-        for (1..$self->{retry_count}) {
-            $ret = eval { $redis->evalsha($sha, scalar(@$keys), @$keys, @$args) };
-            $err = $@;
-            if ($err && $err =~ /\[evalsha\] NOSCRIPT No matching script/i) {
-                $self->load($redis);
-                next;
-            } elsif ($err) {
-                die $err;
-            }
-            last;
+    if ($self->{use_evalsha}) {
+        my $sha = $self->sha1;
+        my $ret = eval { $redis->evalsha($sha, scalar(@$keys), @$keys, @$args) };
+        if (my $err = $@) {
+            die $err if $err !~ /\[evalsha\] NOSCRIPT No matching script/i;
+        } else {
+            return (wantarray && ref $ret eq 'ARRAY') ? @$ret : $ret;
         }
-        die $err if $err;
-    } else {
-        $ret = $redis->eval($self->{script}, scalar(@$keys), @$keys, @$args);
     }
+
+    my $ret = $redis->eval($self->{script}, scalar(@$keys), @$keys, @$args);
 
     return (wantarray && ref $ret eq 'ARRAY') ? @$ret : $ret;
 }
 
 sub exists {
     my ($self, $redis) = @_;
-    if (my $sha = $self->{sha}) {
-        return $redis->script_exists($sha)->[0];
-    }
-    return 1;
+    return $redis->script_exists($self->sha1)->[0];
 }
 
 sub load {
     my ($self, $redis) = @_;
-    if (my $sha = $self->{sha}) {
-        my $redis_sha = $redis->script_load($self->{script});
-        if (lc $sha ne lc $redis_sha) {
-            die "SHA is unmatch (expected $sha but redis returns $redis_sha)";
-        }
-        return $sha;
+    my $sha = $self->sha1;
+    my $redis_sha = $redis->script_load($self->{script});
+    if (lc $sha ne lc $redis_sha) {
+        die "SHA is unmatch (expected $sha but redis returns $redis_sha)";
     }
-    return sha1_hex($self->{script});
+    return $sha;
+}
+
+sub sha1 {
+    my $self = shift;
+    return $self->{sha} ||= sha1_hex($self->{script});
 }
 
 1;
