@@ -22,6 +22,22 @@ sub new {
 
     $self->{hash_key} ||= $self->{key} . ":score";
 
+    my $mask = "";
+    for my $order (@{$self->{order}}) {
+        my $m = "\x80\x00\x00\x00\x00\x00\x00\x00";
+        if ($order eq 'asc') {
+            $m = ~$m;
+        } elsif ($order eq 'desc') {
+            # do nothing
+        } else {
+            die "invalid order: $order";
+        }
+        $mask .= $m;
+    }
+    $self->{_mask} = $mask;
+    $self->{_pack_pattern} = ($SUPPORT_64BIT ? "q>" : "l>l>") x scalar @{$self->{order}};
+    $self->{_unpack_pattern} = ($SUPPORT_64BIT ? "q>" : "n4l>") x scalar @{$self->{order}};
+
     return $self;
 }
 
@@ -265,40 +281,16 @@ sub _pack_scores {
     my $num = scalar @scores;
     my $order = $self->{order};
     die "the number of scores is illegal" if $num != scalar @$order;
-    my $packed_score = '';
-    for my $i (0..$num-1) {
-        my $score = $scores[$i];
-        my $packed = $SUPPORT_64BIT ? pack('q>', $score) : pack('l>l>', $score < 0 ? -1 : 0, $score);
-        $packed = "$packed" ^ "\x80";
-        if ($order->[$i] eq 'asc') {
-            $packed = ~"$packed";
-        }
-        $packed_score .= $packed;
+    if ($SUPPORT_64BIT) {
+        return pack($self->{_pack_pattern}, @scores) ^ $self->{_mask};
+    } else {
+        return pack($self->{_pack_pattern}, map { $_ < 0 ? -1 : 0, $_ } @scores) ^ $self->{_mask};
     }
-    return $packed_score;
 }
 
 sub _unpack_scores {
     my ($self, $packed_score) = @_;
-    my $order = $self->{order};
-    my $num = scalar @$order;
-    my @packeds = $packed_score =~ /.{8}/g;
-    my @scores;
-    for my $i (0..$num-1) {
-        my $packed = $packeds[$i];
-        $packed = "$packed" ^ "\x80";
-        if ($order->[$i] eq 'asc') {
-            $packed = ~"$packed";
-        }
-        my $score;
-        if ($SUPPORT_64BIT) {
-            ($score) = unpack('q>', $packed);
-        } else {
-            (undef, $score) = unpack('l>l>', $packed)
-        }
-        push @scores, $score;
-    }
-    return @scores;
+    return unpack($self->{_unpack_pattern}, $packed_score ^ $self->{_mask});
 }
 
 
