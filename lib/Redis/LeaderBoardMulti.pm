@@ -5,8 +5,8 @@ use warnings;
 
 our $VERSION = "0.01";
 
-use Redis::LeaderBoardMulti::Util qw/multi_exec watch_multi_exec/;
-use Redis::LeaderBoardMulti::Script;
+use Redis::Transaction qw/multi_exec watch_multi_exec/;
+use Redis::Script;
 
 our $SUPPORT_64BIT = eval { unpack('Q>', "\x00\x00\x00\x00\x00\x00\x00\x01") };
 
@@ -50,7 +50,7 @@ sub set_score {
     if ($self->{use_hash}) {
         my $hash_key = $self->{hash_key};
         if ($self->{use_script}) {
-            my $script = $self->{_set_score_hash_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_set_score_hash_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('HGET',KEYS[2],ARGV[1])
@@ -75,7 +75,7 @@ EOS
     } else {
         my $sub_sort_key = "$key:$member";
         if ($self->{use_script}) {
-            my $script = $self->{_set_score_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_set_score_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('GET',KEYS[2])
@@ -118,7 +118,7 @@ sub remove {
     if ($self->{use_hash}) {
         my $hash_key = $self->{hash_key};
         if ($self->{use_script}) {
-            my $script = $self->{_remove_hash_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_remove_hash_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('HGET',KEYS[2],ARGV[1])
@@ -143,7 +143,7 @@ EOS
     } else {
         my $sub_sort_key = "$key:$member";
         if ($self->{use_script}) {
-            my $script = $self->{_remove_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_remove_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('GET',KEYS[2])
@@ -177,7 +177,7 @@ sub get_sorted_order {
     if ($self->{use_hash}) {
         my $hash_key = $self->{hash_key};
         if ($self->{use_script}) {
-            my $script = $self->{_get_sort_order_hash_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_get_sort_order_hash_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('HGET',KEYS[2],ARGV[1])
@@ -192,7 +192,7 @@ EOS
     } else {
         my $sub_sort_key = "$key:$member";
         if ($self->{use_script}) {
-            my $script = $self->{_get_sort_order_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_get_sort_order_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('GET',KEYS[2])
@@ -229,7 +229,7 @@ sub get_rank_with_score {
     if ($self->{use_hash}) {
         my $hash_key = $self->{hash_key};
         if ($self->{use_script}) {
-            my $script = $self->{_get_rank_with_score_hash_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_get_rank_with_score_hash_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('HGET',KEYS[2],ARGV[1])
@@ -244,7 +244,7 @@ EOS
     } else {
         my $sub_sort_key = "$key:$member";
         if ($self->{use_script}) {
-            my $script = $self->{_get_rank_with_score_script} ||= Redis::LeaderBoardMulti::Script->new(
+            my $script = $self->{_get_rank_with_score_script} ||= Redis::Script->new(
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('GET',KEYS[2])
