@@ -5,6 +5,7 @@ use warnings;
 
 our $VERSION = "0.01";
 
+use Redis::LeaderBoardMulti::Member;
 use Redis::Transaction qw/multi_exec watch_multi_exec/;
 use Redis::Script;
 
@@ -23,12 +24,15 @@ sub new {
     $self->{hash_key} ||= $self->{key} . ":score";
 
     my $mask = "";
+    unless (ref $self->{order}) {
+        $self->{order} = [$self->{order}];
+    }
     for my $order (@{$self->{order}}) {
         my $m = "\x80\x00\x00\x00\x00\x00\x00\x00";
         if ($order eq 'asc') {
-            $m = ~$m;
-        } elsif ($order eq 'desc') {
             # do nothing
+        } elsif ($order eq 'desc') {
+            $m = ~$m;
         } else {
             die "invalid order: $order";
         }
@@ -42,10 +46,17 @@ sub new {
 }
 
 sub set_score {
-    my ($self, $member, @scores) = @_;
+    my $self = shift;
+    for (my $i = 0; $i < @_; $i+=2) {
+        $self->_set_score($_[$i], $_[$i+1]);
+    }
+}
+
+sub _set_score {
+    my ($self, $member, $scores) = @_;
     my $redis = $self->{redis};
     my $key = $self->{key};
-    my $packed_score = $self->_pack_scores(@scores);
+    my $packed_score = $self->_pack_scores($scores);
 
     if ($self->{use_hash}) {
         my $hash_key = $self->{hash_key};
@@ -107,7 +118,109 @@ sub get_score {
     my $packed_score = $self->{use_hash}
         ? $redis->hget($self->{hash_key}, $member)
         : $redis->get("$key:$member");
+    return unless $packed_score;
     return $self->_unpack_scores($packed_score);
+}
+
+sub incr_score {
+    my ($self, $member, $scores) = @_;
+    my $redis = $self->{redis};
+    my $key = $self->{key};
+    my $order = $self->{order};
+    my @new_scores;
+
+    $scores ||= [1];
+    unless (ref $scores) {
+        $scores = [$scores];
+    }
+
+    if ($self->{use_hash}) {
+        my $hash_key = $self->{hash_key};
+        if ($self->{use_script}) {
+            my $script = $self->{_incr_score_hash_script} ||= Redis::Script->new(
+                use_evalsha => $self->{use_evalsha},
+                script      => <<EOS,
+local s=redis.call('HGET',KEYS[2],ARGV[1]) or ''
+if s~=ARGV[3] then
+return 0
+end
+if s~='' then
+redis.call('ZREM',KEYS[1],s..ARGV[1])
+end
+redis.call('ZADD',KEYS[1],0,ARGV[2]..ARGV[1])
+redis.call('HSET',KEYS[2],ARGV[1],ARGV[2])
+return 1
+EOS
+            );
+            for (1..10) {
+                my $old_packed_score = $redis->hget($hash_key, $member);
+                my @old_scores;
+                if ($old_packed_score) {
+                    @old_scores = $self->_unpack_scores($old_packed_score);
+                    $redis->zrem($key, "$old_packed_score$member", sub {});
+                }
+
+                for my $i (0..scalar(@$order)-1) {
+                    push @new_scores, ($old_scores[$i] || 0) + ($scores->[$i] || 0);
+                }
+                my $packed_score = $self->_pack_scores(\@new_scores);
+                if ($script->eval($redis, [$key, $hash_key], [$member, $packed_score, $old_packed_score || ''])) {
+                    last;
+                }
+            }
+        } else {
+            watch_multi_exec $redis, [$hash_key], 10, sub {
+                return $redis->hget($hash_key, $member);
+            }, sub {
+                my (undef, $old_packed_score) = @_;
+                my @old_scores;
+                if ($old_packed_score) {
+                    @old_scores = $self->_unpack_scores($old_packed_score);
+                    $redis->zrem($key, "$old_packed_score$member", sub {});
+                }
+
+                for my $i (0..scalar(@$order)-1) {
+                    push @new_scores, ($old_scores[$i] || 0) + ($scores->[$i] || 0);
+                }
+                my $packed_score = $self->_pack_scores(\@new_scores);
+                $redis->zadd($key, 0, "$packed_score$member", sub {});
+                $redis->hset($hash_key, $member, $packed_score, sub {});
+            };
+        }
+    } else {
+        my $sub_sort_key = "$key:$member";
+        watch_multi_exec $redis, [$sub_sort_key], 10, sub {
+            return $redis->get($sub_sort_key);
+        }, sub {
+            my (undef, $old_packed_score) = @_;
+            my @old_scores;
+            if ($old_packed_score) {
+                @old_scores = $self->_unpack_scores($old_packed_score);
+                $redis->zrem($key, "$old_packed_score$member", sub {});
+            }
+
+            for my $i (0..scalar(@$order)-1) {
+                push @new_scores, ($old_scores[$i] || 0) + ($scores->[$i] || 0);
+            }
+            my $packed_score = $self->_pack_scores(\@new_scores);
+            $redis->zadd($key, 0, "$packed_score$member", sub {});
+            $redis->set($sub_sort_key, $packed_score, sub {});
+        };
+    }
+
+    return wantarray ? @new_scores : $new_scores[0];
+}
+
+sub decr_score {
+    my ($self, $member, $scores) = @_;
+    $scores ||= [1];
+    unless (ref $scores) {
+        $scores = [$scores];
+    }
+    for my $i (0..scalar(@$scores)-1) {
+        $scores->[$i] *= -1;
+    }
+    return $self->incr_score($member, $scores);
 }
 
 sub remove {
@@ -233,6 +346,9 @@ sub get_rank_with_score {
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('HGET',KEYS[2],ARGV[1])
+if not s then
+return {nil, nil}
+end
 return {s,redis.call('ZLEXCOUNT',KEYS[1],'-','('..s)}
 EOS
             );
@@ -261,36 +377,100 @@ EOS
         }
     }
 
-
+    return if !defined $rank or !defined $packed_score;
     return $rank + 1, $self->_unpack_scores($packed_score);
 }
 
 sub get_rank_by_score {
-    my ($self, @scores) = @_;
+    my ($self, $scores) = @_;
     my $redis = $self->{redis};
     my $key = $self->{key};
 
-    my $packed_score = $self->_pack_scores(@scores);
+    my $packed_score = $self->_pack_scores($scores);
     my $rank = $redis->zlexcount($key, '-', "[$packed_score");
 
     return $rank + 1;
 }
 
+sub member_count {
+    my ($self, $from, $to) = @_;
+
+    if (!$from && !$to) {
+        $self->{redis}->zcard($self->{key});
+    }
+    else {
+        $from = defined $from ? $from : '-inf';
+        $to   = defined $to   ? $to   : 'inf';
+        $self->{redis}->zcount($self->{key}, $from, $to);
+    }
+}
+
+sub rankings {
+    my ($self, %args) = @_;
+    my $limit  = exists $args{limit}  ? $args{limit}  : $self->member_count;
+    my $offset = exists $args{offset} ? $args{offset} : 0;
+
+    my $members_with_scores = $self->{redis}->zrange($self->{key}, $offset, $offset + $limit - 1);
+    return [] unless @$members_with_scores;
+
+    my @rankings;
+    my ($current_rank, $current_target_scores, $same_score_members);
+    for my $member_with_score (@$members_with_scores) {
+        my $scores = [$self->_unpack_scores($member_with_score)];
+        my $member = substr $member_with_score, 8*@$scores;
+
+        if (!$current_rank) {
+            $current_rank          = $self->get_rank_by_score($scores);
+            $same_score_members    = $offset - $current_rank + 2;
+            $current_target_scores = $scores;
+        }
+        elsif (!grep { $scores->[$_] != $current_target_scores->[$_] } 0..@$scores-1) {
+            $same_score_members++;
+        }
+        else {
+            $current_target_scores = $scores;
+            $current_rank = $current_rank + $same_score_members;
+            $same_score_members = 1;
+        }
+        push @rankings, +{
+            member => $member,
+            score  => $scores->[0],
+            rank   => $current_rank,
+            scores => $scores,
+        };
+    }
+
+    \@rankings;
+}
+
+sub find_member {
+    my ($self, $member) = @_;
+
+    Redis::LeaderBoardMulti::Member->new(
+        member       => $member,
+        leader_board => $self,
+    );
+}
+
 sub _pack_scores {
-    my ($self, @scores) = @_;
-    my $num = scalar @scores;
+    my ($self, $scores) = @_;
+    unless(ref $scores) {
+        $scores = [$scores];
+    }
+    my $num = scalar @$scores;
     my $order = $self->{order};
     die "the number of scores is illegal" if $num != scalar @$order;
     if ($SUPPORT_64BIT) {
-        return pack($self->{_pack_pattern}, @scores) ^ $self->{_mask};
+        return pack($self->{_pack_pattern}, @$scores) ^ $self->{_mask};
     } else {
-        return pack($self->{_pack_pattern}, map { $_ < 0 ? -1 : 0, $_ } @scores) ^ $self->{_mask};
+        return pack($self->{_pack_pattern}, map { $_ < 0 ? -1 : 0, $_ } @$scores) ^ $self->{_mask};
     }
 }
 
 sub _unpack_scores {
     my ($self, $packed_score) = @_;
-    return unpack($self->{_unpack_pattern}, $packed_score ^ $self->{_mask});
+    my @scores = unpack($self->{_unpack_pattern}, $packed_score ^ $self->{_mask});
+    return wantarray ? @scores : $scores[0];
 }
 
 

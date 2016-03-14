@@ -9,7 +9,7 @@ sub pack_scores {
         key   => 'sortable-member',
         order => $order,
     );
-    return $l->_pack_scores(@$scores);
+    return $l->_pack_scores($scores);
 }
 
 sub unpack_scores {
