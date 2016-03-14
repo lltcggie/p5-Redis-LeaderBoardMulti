@@ -17,7 +17,7 @@ subtest 'do not use script, use normal key' => sub {
         key   => 'sortable-member',
         use_script => 0,
         use_hash   => 0,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
@@ -29,7 +29,7 @@ subtest 'do not use script, use hash key' => sub {
         key   => 'sortable-member',
         use_script => 0,
         use_hash   => 1,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
@@ -41,7 +41,7 @@ subtest 'use script, use normal key' => sub {
         key   => 'sortable-member',
         use_script => 1,
         use_hash   => 0,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
@@ -53,7 +53,7 @@ subtest 'use script, use hash key' => sub {
         key   => 'sortable-member',
         use_script => 1,
         use_hash   => 1,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
