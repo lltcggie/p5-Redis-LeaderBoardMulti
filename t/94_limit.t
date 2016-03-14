@@ -39,14 +39,17 @@ subtest 'limit with desc' => sub {
         member => 'four',
         score  => 4,
         rank   => 1,
+        scores => [4], # added
     }, {
         member => 'three',
         score  => 3,
         rank   => 2,
+        scores => [3], # added
     }, {
         member => 'two',
         score  => 2,
         rank   => 3,
+        scores => [2], # added
     }];
 
 
@@ -60,14 +63,19 @@ subtest 'limit with desc' => sub {
         member => 'four',
         score  => 4,
         rank   => 1,
+        scores => [4], # added
     }, {
-        member => 'three-dash',
-        score  => 3,
-        rank   => 2,
-    }, {
+        # XXX: Redis::LeaderBoard will retrun three-dash, but Redis::LeaderBoardMulti will not
         member => 'three',
         score  => 3,
         rank   => 2,
+        scores => [3], # added
+    }, {
+        # XXX: Redis::LeaderBoard will retrun three, but Redis::LeaderBoardMulti will not
+        member => 'three-dash', # three
+        score  => 3,
+        rank   => 2,
+        scores => [3], # added
     }];
 };
 
@@ -98,14 +106,17 @@ subtest 'limit with desc' => sub {
         member => 'zero',
         score  => 0,
         rank   => 1,
+        scores => [0], # added
     }, {
         member => 'one',
         score  => 1,
         rank   => 2,
+        scores => [1], # added
     }, {
         member => 'two',
         score  => 2,
         rank   => 3,
+        scores => [2], # added
     }];
 
 
@@ -119,14 +130,17 @@ subtest 'limit with desc' => sub {
         member => 'zero',
         score  => 0,
         rank   => 1,
+        scores => [0], # added
     }, {
         member => 'zero2',
         score  => 0,
         rank   => 1,
+        scores => [0], # added
     }, {
         member => 'one',
         score  => 1,
         rank   => 3,
+        scores => [1], # added
     }];
 };
 
