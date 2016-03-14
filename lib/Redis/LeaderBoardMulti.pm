@@ -109,6 +109,7 @@ EOS
             };
         }
     }
+    $self->_set_expire_and_limit($member);
 }
 
 sub get_score {
@@ -207,6 +208,7 @@ EOS
             $redis->set($sub_sort_key, $packed_score, sub {});
         };
     }
+    $self->_set_expire_and_limit($member);
 
     return wantarray ? @new_scores : $new_scores[0];
 }
@@ -221,6 +223,27 @@ sub decr_score {
         $scores->[$i] *= -1;
     }
     return $self->incr_score($member, $scores);
+}
+
+sub _set_expire_and_limit {
+    my ($self, $member) = @_;
+    my $redis = $self->{redis};
+    if (my $expire_at = $self->{expire_at}) {
+        $redis->expireat($self->{key}, $expire_at);
+        if ($self->{use_hash}) {
+            $redis->expireat($self->{hash_key}, $expire_at);
+        } else {
+            $redis->expireat($self->{key}.":".$member, $expire_at);
+        }
+    }
+
+#    if ($self->limit) {
+#        my ($from, $to) = (0, -$self->limit-1);
+#        if ($self->is_asc) {
+#            ($from, $to) = ($self->limit, -1)
+#        }
+#        $self->redis->zremrangebyrank($self->key, $from, $to);
+#    }
 }
 
 sub remove {
