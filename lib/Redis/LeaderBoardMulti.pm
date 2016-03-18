@@ -409,7 +409,7 @@ EOS
             ($packed_score, $rank) = $script->eval($redis, [$key, $hash_key], [$member]);
         } else {
             $packed_score = $redis->hget($hash_key, $member);
-            $rank = $redis->zlexcount($key, '-', "($packed_score");
+            $rank = $redis->zlexcount($key, '-', "($packed_score") if $packed_score;
         }
     } else {
         my $sub_sort_key = "$key:$member";
@@ -418,6 +418,9 @@ EOS
                 use_evalsha => $self->{use_evalsha},
                 script      => <<EOS,
 local s=redis.call('GET',KEYS[2])
+if not s then
+return {nil, nil}
+end
 return {s,redis.call('ZLEXCOUNT',KEYS[1],'-','('..s)}
 EOS
             );
@@ -426,7 +429,7 @@ EOS
             ($rank) = watch_multi_exec $redis, [$sub_sort_key], 10, sub {
                 $packed_score = $redis->get($sub_sort_key);
             }, sub {
-                $redis->zlexcount($key, '-', "($packed_score");
+                $redis->zlexcount($key, '-', "($packed_score") if $packed_score;
             };
         }
     }
