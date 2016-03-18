@@ -15,6 +15,7 @@ my $redis = $redis_backend->new($redis_server->connect_info);
 
 sub test {
     my $opt = shift;
+    $redis->flushall;
     subtest 'limit with desc' => sub {
         my $redis_ranking = Redis::LeaderBoardMulti->new(
             key        => 'testlimit1',

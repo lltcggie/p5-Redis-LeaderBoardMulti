@@ -18,6 +18,7 @@ my $redis = $redis_backend->new($redis_server->connect_info);
 
 sub test {
     my $opt = shift;
+    $redis->flushall;
     subtest 'get_rank_with_score' => sub {
         my $redis_ranking = Redis::LeaderBoardMulti->new(
             key   => 'test_asc',
