@@ -265,11 +265,14 @@ EOS
 local k=KEYS[1]
 local l=ARGV[1]
 local s=redis.call('ZRANGE',k,l,-1)
+if #s==0 then
+return
+end
 for i=1,#s do
 s[i]=k..":"..string.sub(s[i],ARGV[2])
 end
 redis.call('DEL',unpack(s))
-redis.call('ZREMRANGEBYRANK',k,0,-l-1)
+redis.call('ZREMRANGEBYRANK',k,l,-1)
 EOS
             );
             $script->eval($redis, [$key], [$limit,scalar(@{$self->{order}})*8]);
