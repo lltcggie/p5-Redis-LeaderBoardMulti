@@ -17,7 +17,7 @@ subtest 'do not use script, use normal key' => sub {
         key   => 'sortable-member',
         use_script => 0,
         use_hash   => 0,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
@@ -29,7 +29,7 @@ subtest 'do not use script, use hash key' => sub {
         key   => 'sortable-member',
         use_script => 0,
         use_hash   => 1,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
@@ -41,7 +41,7 @@ subtest 'use script, use normal key' => sub {
         key   => 'sortable-member',
         use_script => 1,
         use_hash   => 0,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
@@ -53,7 +53,7 @@ subtest 'use script, use hash key' => sub {
         key   => 'sortable-member',
         use_script => 1,
         use_hash   => 1,
-        order      => ['desc', 'desc'],
+        order      => ['asc', 'asc'],
     );
     $redis->flushall;
     test_leader_board($l);
@@ -63,10 +63,10 @@ sub test_leader_board {
     my $l = shift;
 
     note 'set_score';
-    $l->set_score('z', 1, 1);
-    $l->set_score('y', 2, 1);
-    $l->set_score('x', 2, 1);
-    $l->set_score('w', 2, 2);
+    $l->set_score('z', [1, 1]);
+    $l->set_score('y', [2, 1]);
+    $l->set_score('x', [2, 1]);
+    $l->set_score('w', [2, 2]);
 
     note 'get_rank';
     is $l->get_rank('z'), 1;
@@ -87,12 +87,12 @@ sub test_leader_board {
     is_deeply [$l->get_rank_with_score('w')], [4, 2, 2];
 
     note 'get_rank_by_score';
-    is $l->get_rank_by_score(1, 1), 1;
-    is $l->get_rank_by_score(2, 1), 2;
-    is $l->get_rank_by_score(2, 2), 4;
+    is $l->get_rank_by_score([1, 1]), 1;
+    is $l->get_rank_by_score([2, 1]), 2;
+    is $l->get_rank_by_score([2, 2]), 4;
 
     note 'modify the score of existing key by set_score';
-    $l->set_score('z', 3, 1);
+    $l->set_score('z', [3, 1]);
     is $l->get_rank('w'), 3;
     is $l->get_rank('z'), 4;
 

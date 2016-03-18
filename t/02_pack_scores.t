@@ -9,7 +9,7 @@ sub pack_scores {
         key   => 'sortable-member',
         order => $order,
     );
-    return $l->_pack_scores(@$scores);
+    return $l->_pack_scores($scores);
 }
 
 sub unpack_scores {
@@ -34,28 +34,28 @@ sub test_32bit_integer {
 }
 
 subtest 'compare score' => sub {
-    cmp_ok pack_scores(['desc'], [ 0]), 'lt', pack_scores(['desc'], [  1]);
-    cmp_ok pack_scores([ 'asc'], [ 0]), 'gt', pack_scores([ 'asc'], [  1]);
-    cmp_ok pack_scores(['desc'], [-1]), 'lt', pack_scores(['desc'], [  0]);
-    cmp_ok pack_scores([ 'asc'], [-1]), 'gt', pack_scores([ 'asc'], [  0]);
-    cmp_ok pack_scores(['desc'], [-2]), 'lt', pack_scores(['desc'], [ -1]);
-    cmp_ok pack_scores([ 'asc'], [-2]), 'gt', pack_scores([ 'asc'], [ -1]);
-    cmp_ok pack_scores(['desc'], [ 1]), 'lt', pack_scores(['desc'], [256]);
-    cmp_ok pack_scores([ 'asc'], [ 1]), 'gt', pack_scores([ 'asc'], [256]);
+    cmp_ok pack_scores(['desc'], [ 0]), 'gt', pack_scores(['desc'], [  1]);
+    cmp_ok pack_scores([ 'asc'], [ 0]), 'lt', pack_scores([ 'asc'], [  1]);
+    cmp_ok pack_scores(['desc'], [-1]), 'gt', pack_scores(['desc'], [  0]);
+    cmp_ok pack_scores([ 'asc'], [-1]), 'lt', pack_scores([ 'asc'], [  0]);
+    cmp_ok pack_scores(['desc'], [-2]), 'gt', pack_scores(['desc'], [ -1]);
+    cmp_ok pack_scores([ 'asc'], [-2]), 'lt', pack_scores([ 'asc'], [ -1]);
+    cmp_ok pack_scores(['desc'], [ 1]), 'gt', pack_scores(['desc'], [256]);
+    cmp_ok pack_scores([ 'asc'], [ 1]), 'lt', pack_scores([ 'asc'], [256]);
 
     my $INT_MAX = ~0 >> 1;
     my $INT_MIN = -$INT_MAX - 1;
-    cmp_ok pack_scores(['desc'], [$INT_MIN  ]), 'lt', pack_scores(['desc'], [$INT_MIN+1]);
-    cmp_ok pack_scores([ 'asc'], [$INT_MIN  ]), 'gt', pack_scores([ 'asc'], [$INT_MIN+1]);
-    cmp_ok pack_scores(['desc'], [$INT_MAX-1]), 'lt', pack_scores(['desc'], [$INT_MAX  ]);
-    cmp_ok pack_scores([ 'asc'], [$INT_MAX-1]), 'gt', pack_scores([ 'asc'], [$INT_MAX  ]);
-    cmp_ok pack_scores(['desc'], [$INT_MIN  ]), 'lt', pack_scores(['desc'], [$INT_MAX  ]);
-    cmp_ok pack_scores([ 'asc'], [$INT_MIN  ]), 'gt', pack_scores([ 'asc'], [$INT_MAX  ]);
+    cmp_ok pack_scores(['desc'], [$INT_MIN  ]), 'gt', pack_scores(['desc'], [$INT_MIN+1]);
+    cmp_ok pack_scores([ 'asc'], [$INT_MIN  ]), 'lt', pack_scores([ 'asc'], [$INT_MIN+1]);
+    cmp_ok pack_scores(['desc'], [$INT_MAX-1]), 'gt', pack_scores(['desc'], [$INT_MAX  ]);
+    cmp_ok pack_scores([ 'asc'], [$INT_MAX-1]), 'lt', pack_scores([ 'asc'], [$INT_MAX  ]);
+    cmp_ok pack_scores(['desc'], [$INT_MIN  ]), 'gt', pack_scores(['desc'], [$INT_MAX  ]);
+    cmp_ok pack_scores([ 'asc'], [$INT_MIN  ]), 'lt', pack_scores([ 'asc'], [$INT_MAX  ]);
 };
 
 subtest 'compare multi scores' => sub {
-    cmp_ok pack_scores(['desc', 'desc'], [0, 0]), 'lt', pack_scores(['desc', 'desc'], [0, 1]);
-    cmp_ok pack_scores([ 'asc',  'asc'], [0, 0]), 'gt', pack_scores([ 'asc',  'asc'], [0, 1]);
+    cmp_ok pack_scores(['desc', 'desc'], [0, 0]), 'gt', pack_scores(['desc', 'desc'], [0, 1]);
+    cmp_ok pack_scores([ 'asc',  'asc'], [0, 0]), 'lt', pack_scores([ 'asc',  'asc'], [0, 1]);
 };
 
 subtest 'unpack' => sub {
