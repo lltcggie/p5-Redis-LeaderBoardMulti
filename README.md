@@ -1,5 +1,3 @@
-[![Build Status](https://travis-ci.org/shogo82148/p5-Redis-LeaderBoardMulti.svg?branch=master)](https://travis-ci.org/shogo82148/p5-Redis-LeaderBoardMulti)
-
 # NAME
 
 Redis::LeaderBoardMulti - Redis leader board considering multiple scores
