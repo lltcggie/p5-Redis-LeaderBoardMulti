@@ -1,5 +1,9 @@
 package Redis::LeaderBoardMulti::Member;
 
+use 5.008005;
+use strict;
+use warnings;
+
 sub new {
     my ($class, %args) = @_;
     my $self = bless {
