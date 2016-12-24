@@ -3,7 +3,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = "0.01";
+our $VERSION = "0.02";
 
 use Redis::LeaderBoardMulti::Member;
 use Redis::Transaction qw/multi_exec watch_multi_exec/;
