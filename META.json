@@ -4,7 +4,7 @@
       "@gmail.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v3.0.1, CPAN::Meta::Converter version 2.150005",
+   "generated_by" : "Minilla/v3.0.7, CPAN::Meta::Converter version 2.143240",
    "license" : [
       "perl_5"
    ],
@@ -34,6 +34,8 @@
       "develop" : {
          "requires" : {
             "Test::CPAN::Meta" : "0",
+            "Test::Kwalitee" : "0",
+            "Test::Kwalitee::Extra" : "0",
             "Test::MinimumVersion::Fast" : "0.04",
             "Test::PAUSE::Permissions" : "0.04",
             "Test::Pod" : "1.41",
@@ -42,16 +44,18 @@
       },
       "runtime" : {
          "requires" : {
+            "Carp" : "0",
             "Redis::Script" : "0",
             "Redis::Transaction" : "0",
-            "perl" : "5.008005"
+            "perl" : "5.010"
          }
       },
       "test" : {
          "requires" : {
             "Redis" : "0",
             "Test::More" : "0.98",
-            "Test::RedisServer" : "0"
+            "Test::RedisServer" : "0",
+            "Test::Warn" : "0"
          }
       }
    },
@@ -70,6 +74,5 @@
    "version" : "0.01",
    "x_contributors" : [
       "Ichinose Shogo <shogo82148@gmail.com>"
-   ],
-   "x_serialization_backend" : "JSON::PP version 2.27202"
+   ]
 }

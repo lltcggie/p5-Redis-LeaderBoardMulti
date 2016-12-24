@@ -1,6 +1,6 @@
 package Redis::LeaderBoardMulti::Member;
 
-use 5.008005;
+use 5.010;
 use strict;
 use warnings;
 

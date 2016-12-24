@@ -1,5 +1,5 @@
 package Redis::LeaderBoardMulti;
-use 5.008005;
+use 5.010;
 use strict;
 use warnings;
 
@@ -8,8 +8,9 @@ our $VERSION = "0.01";
 use Redis::LeaderBoardMulti::Member;
 use Redis::Transaction qw/multi_exec watch_multi_exec/;
 use Redis::Script;
+use Carp;
 
-our $SUPPORT_64BIT = eval { unpack('Q>', "\x00\x00\x00\x00\x00\x00\x00\x01") };
+our $SUPPORT_64BIT = eval { unpack('q>', "\x00\x00\x00\x00\x00\x00\x00\x01") };
 
 sub new {
     my ($class, %args) = @_;
@@ -40,7 +41,7 @@ sub new {
     }
     $self->{_mask} = $mask;
     $self->{_pack_pattern} = ($SUPPORT_64BIT ? "q>" : "l>l>") x scalar @{$self->{order}};
-    $self->{_unpack_pattern} = ($SUPPORT_64BIT ? "q>" : "n4l>") x scalar @{$self->{order}};
+    $self->{_unpack_pattern} = ($SUPPORT_64BIT ? "q>" : "l>l>") x scalar @{$self->{order}};
 
     return $self;
 }
@@ -554,14 +555,30 @@ sub _pack_scores {
     if ($SUPPORT_64BIT) {
         return pack($self->{_pack_pattern}, @$scores) ^ $self->{_mask};
     } else {
-        return pack($self->{_pack_pattern}, map { $_ < 0 ? -1 : 0, $_ } @$scores) ^ $self->{_mask};
+        return pack(
+            $self->{_pack_pattern},
+            # sign extension
+            map { ($_<0?-1:0), $_ } @$scores
+        ) ^ $self->{_mask};
     }
 }
 
 sub _unpack_scores {
     my ($self, $packed_score) = @_;
     my @scores = unpack($self->{_unpack_pattern}, $packed_score ^ $self->{_mask});
-    return wantarray ? @scores : $scores[0];
+    if ($SUPPORT_64BIT) {
+        return wantarray ? @scores : $scores[0];
+    } else {
+        my @s;
+        for (my $i = 0; $i < @scores; $i += 2) {
+            # check overflow
+            if (($scores[$i+1]>=0&&$scores[$i]!=0) || ($scores[$i+1]<0&&$scores[$i]!=-1)) {
+                carp "[Redis::LeaderBoardMulti] score overflow";
+            }
+            push @s, $scores[$i+1];
+        }
+        return wantarray ? @s : $s[0];
+    }
 }
 
 
